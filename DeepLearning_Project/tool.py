@@ -123,10 +123,10 @@ class Animator:
         if legend is None:
             legend = []
         use_svg_display()
-        self.fig, self.axes = d2l.plt.subplots(nrows, ncols, figsize=figsize)
+        self.fig, self.axes = plt.subplots(nrows, ncols, figsize=figsize)
         if nrows * ncols == 1:
             self.axes = [self.axes, ]
-        self.config_axes = lambda: d2l.set_axes(
+        self.config_axes = lambda: set_axes(
             self.axes[0], xlabel, ylabel, xlim, ylim, xscale, yscale, legend)
         self.X, self.Y, self.fmts = None, None, fmts
 
