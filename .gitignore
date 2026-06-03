@@ -3,4 +3,4 @@
 
 # Vscode
 .vscode
-data/
+.venv
