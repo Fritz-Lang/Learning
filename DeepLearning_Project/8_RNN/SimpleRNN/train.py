@@ -18,7 +18,7 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备：{device}")
 
-    train_loader, test_loader, vocab_size = get_data_loader(
+    train_loader, _, vocab_size = get_data_loader(
         batch_size=BATCH_SIZE,
         sequence_length=SEQUENCE_LENGTH
     )
@@ -27,27 +27,24 @@ def train():
         vocab_size=vocab_size,
         embed_dim=EMBED_DIM,
         hidden_size=HIDDEN_SIZE,
-        batch_size=BATCH_SIZE,
-        device=device
     ).to(device)
 
-    loss_fn = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     print("开始训练模型...")
 
+    # 最外层循环：训练次数
+    # 内层循环：batch_size
     for epoch in range(EPOCH_NUM):
         model.train()
         total_loss = 0
 
+        hidden = model.init_hidden(BATCH_SIZE, HIDDEN_SIZE, device)
+
         progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{EPOCH_NUM}")
         for i, (inputs, targets) in enumerate(progress):
             inputs, targets = inputs.to(device), targets.to(device)
-
-            hidden = model.init_hidden(BATCH_SIZE, HIDDEN_SIZE, device)
-
-            # 梯度裁剪
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
 
             optimizer.zero_grad()
 
@@ -56,9 +53,10 @@ def train():
             # 将 targets 展平，以便与 output 的维度匹配
             targets = targets.view(-1)
 
-            loss = loss_fn(output, targets)
+            loss = criterion(output, targets)
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
             total_loss += loss.item()

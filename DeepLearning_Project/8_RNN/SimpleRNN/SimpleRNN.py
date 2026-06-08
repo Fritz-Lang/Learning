@@ -1,50 +1,45 @@
 import torch
 from torch import nn
 
-# Module 类是 torch.nn 模块里提供的一个模型构造类 (nn.Module)，是所有神经⽹网络模块的基类，我们可以继承它来定义我们想要的模型
-# PyTorch模型定义应包括两个主要部分：各个部分的初始化（__init__）；数据流向定义（forward）
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# nn.Module类torch模块里提供的一个模型构造类 (nn.Module)，可以继承它来定义我们想要的模型
+# 模型定义应包括两个主要部分：参数初始化（__init__方法）和前向传播（forward方法）
 
 class SimpleRNN(nn.Module):
-    def __init__(self, vocab_size, embed_dim=256, hidden_size=512, batch_size=64, device=device):
+    def __init__(self, vocab_size, embed_dim, hidden_size):
         super().__init__()
         self.embed_dim = embed_dim
         self.hidden_size = hidden_size
-        self.batch_size = batch_size
-        self.device = device
         
         # 不采用onehot编码，因为会把每个字符展成长度为len(vocab)的向量，导致维度爆炸
-        # 词嵌入则可避免这一点，只会展成固定长度为embed_size的向量，远小于len(vocab)
-        # 所以添加一个embedding层
+        # 词嵌入则可避免这一点，只会展成固定长度为embed_size的向量，远小于len(vocab)，所以添加一个embedding层
         self.embedding = nn.Embedding(vocab_size, embed_dim)
 
-        # RNN层
-        self.W_xh = nn.Parameter(torch.rand(embed_dim, hidden_size, device = device) * 0.01)
-        self.W_hh = nn.Parameter(torch.rand(hidden_size, hidden_size, device = device) * 0.01)
-        self.b_h = nn.Parameter(torch.zeros(hidden_size, device = device))
+        # RNN层参数
+        self.W_xh = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
+        self.W_hh = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
+        self.b_h = nn.Parameter(torch.zeros(hidden_size))
 
-        # 全连接层
-        self.W_hq = nn.Parameter(torch.rand(hidden_size, vocab_size, device = device) * 0.01)
-        self.h_q = nn.Parameter(torch.zeros(vocab_size, device = device))
+        # 全连接层参数
+        self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
+        self.b_q = nn.Parameter(torch.zeros(vocab_size))
 
-    def init_hidden(batch_size, hidden_size, device):
-        return torch.zeros(batch_size, hidden_size, device)
+    def init_hidden(self, batch_size, hidden_size, device=None):
+        return torch.zeros(batch_size, hidden_size, device=device)
 
-    def forward(self, X):
-        # 调用词嵌入层embedding，将输入展开成（批量大小，时间步数，嵌入维度）
-        embedded = self.embedding(X)
-        # 为了防止最后批量大小不足导致维度冲突，在每次循环计算前，取出批量大小
-        batch_size, seq_len, _ = embedded.shape
-        # 初始化隐状态
-        H = self.init_hidden(batch_size, self.hidden_size, self.device)
+    def forward(self, X, H=None):
+        # 这里的X不是一整个batch，只是batch的（输入序列，目标序列）的输入序列
+        # 输入X形状（批量大小，时间步数）
+        # 调用词嵌入层embedding，将输入展开成（时间步数，批量大小，嵌入维度）
+        embedded = self.embedding(X.T)
+        
+        seq_len = embedded.shape[0]
 
         Outputs = []
-        X_t = embedded @ self.W_xh
         # X按时间步取输入的切片
         for t in range(seq_len):
-            H = torch.tanh(X_t[:, t, :] + torch.mm(H, self.W_hh) + self.b_h)
-            O = torch.mm(H, self.W_hq) + self.h_q
+            H = torch.tanh(torch.mm(embedded[t], self.W_xh) + torch.mm(H, self.W_hh) + self.b_h)
+            O = torch.mm(H, self.W_hq) + self.b_q
             Outputs.append(O)
 
-        return torch.cat(Outputs, dim=0), H
+        # 输出O形状(时间步数，批量大小，词表大小)和传递到下一个的隐状态
+        return torch.stack(Outputs, dim=0), H

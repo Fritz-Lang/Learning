@@ -66,7 +66,7 @@ def prepare_data(sequence_length=50):
     #保存词汇表
     with open(VOCAB_FILE, "wb") as file:
         pickle.dump((token_to_ix, ix_to_token, vocab_size), file)
-    print("词表存入{VOCAB_FILE}, 词汇量大小{vocab_size}")
+    print(f"词表存入{VOCAB_FILE}, 词汇量大小{vocab_size}")
 
     #台词原文转为整数序列
     text_as_int = [token_to_ix[ch] for ch in text]
