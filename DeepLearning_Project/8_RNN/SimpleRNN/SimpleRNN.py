@@ -27,13 +27,9 @@ class SimpleRNN(nn.Module):
     def init_hidden(self, batch_size, device=None):
         return torch.zeros(batch_size, self.hidden_size).to(device)
 
-    def forward(self, X, H=None):
+    def forward(self, X, H):
         # 输入X形状（批量大小，时间步数），调用词嵌入层embedding，将输入展开成（时间步数，批量大小，嵌入维度）
         embedded = self.embedding(X.T)
-
-        # 若未提供初始隐藏状态，初始化为零
-        if H is None:
-            H = self.init_hidden(X.shape[0], device=X.device)
 
         Outputs = []
         # X按时间步取输入的切片
@@ -44,4 +40,4 @@ class SimpleRNN(nn.Module):
             Outputs.append(O)
 
         # 输出O形状(时间步数，批量大小，词表大小)和传递到下一个的隐状态
-        return torch.stack(Outputs, dim=0), H
+        return torch.cat(Outputs, dim=0), H
