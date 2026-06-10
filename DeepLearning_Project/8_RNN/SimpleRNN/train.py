@@ -43,14 +43,14 @@ def train():
         hidden = model.init_hidden(BATCH_SIZE, HIDDEN_SIZE, device)
 
         progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{EPOCH_NUM}")
-        for i, (inputs, targets) in enumerate(progress):
+        for _, (inputs, targets) in enumerate(progress):
             inputs, targets = inputs.to(device), targets.to(device)
 
             optimizer.zero_grad()
 
             output, hidden = model(inputs, hidden)
 
-            # 将 targets 展平，以便与 output 的维度匹配
+            # targets形状（批量大小，时间步数）
             targets = targets.view(-1)
 
             loss = criterion(output, targets)

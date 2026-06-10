@@ -11,7 +11,8 @@ class SimpleRNN(nn.Module):
         self.hidden_size = hidden_size
         
         # 不采用onehot编码，因为会把每个字符展成长度为len(vocab)的向量，导致维度爆炸
-        # 词嵌入则可避免这一点，只会展成固定长度为embed_size的向量，远小于len(vocab)，所以添加一个embedding层
+        # 词嵌入则可避免这一点，只会展成固定长度为embed_size的向量，远小于len(vocab)
+        # 所以添加一个embedding层，这个层将词汇表中的每个单词映射到一个embed_dim维的向量
         self.embedding = nn.Embedding(vocab_size, embed_dim)
 
         # RNN层参数
@@ -19,26 +20,27 @@ class SimpleRNN(nn.Module):
         self.W_hh = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
         self.b_h = nn.Parameter(torch.zeros(hidden_size))
 
-        # 全连接层参数
+        # 全连接层将RNN的输出映射到词汇表的大小，从而预测下一个单词。
         self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
         self.b_q = nn.Parameter(torch.zeros(vocab_size))
 
-    def init_hidden(self, batch_size, hidden_size, device=None):
-        return torch.zeros(batch_size, hidden_size, device=device)
+    def init_hidden(self, batch_size, device=None):
+        return torch.zeros(batch_size, self.hidden_size).to(device)
 
     def forward(self, X, H=None):
-        # 这里的X不是一整个batch，只是batch的（输入序列，目标序列）的输入序列
-        # 输入X形状（批量大小，时间步数）
-        # 调用词嵌入层embedding，将输入展开成（时间步数，批量大小，嵌入维度）
+        # 输入X形状（批量大小，时间步数），调用词嵌入层embedding，将输入展开成（时间步数，批量大小，嵌入维度）
         embedded = self.embedding(X.T)
-        
-        seq_len = embedded.shape[0]
+
+        # 若未提供初始隐藏状态，初始化为零
+        if H is None:
+            H = self.init_hidden(X.shape[0], device=X.device)
 
         Outputs = []
         # X按时间步取输入的切片
+        seq_len = embedded.shape[0]
         for t in range(seq_len):
-            H = torch.tanh(torch.mm(embedded[t], self.W_xh) + torch.mm(H, self.W_hh) + self.b_h)
-            O = torch.mm(H, self.W_hq) + self.b_q
+            H = torch.tanh(embedded[t] @ self.W_xh + H @ self.W_hh + self.b_h)
+            O = H @ self.W_hq + self.b_q
             Outputs.append(O)
 
         # 输出O形状(时间步数，批量大小，词表大小)和传递到下一个的隐状态
