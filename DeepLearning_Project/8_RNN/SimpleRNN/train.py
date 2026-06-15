@@ -9,8 +9,8 @@ from SimpleRNN import SimpleRNN
 # 超参数
 BATCH_SIZE = 64
 SEQUENCE_LENGTH = 100
-EPOCH_NUM = 20
-LEARNING_RATE = 0.0005
+EPOCH_NUM = 10
+LEARNING_RATE = 0.002
 EMBED_DIM = 256
 HIDDEN_SIZE = 512
 
@@ -74,3 +74,6 @@ def train():
 
         avg_loss = total_loss/len(train_loader)
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
+
+if __name__ == '__main__':
+    train()
