@@ -41,3 +41,20 @@ class SimpleRNN(nn.Module):
 
         # 输出O形状(时间步数，批量大小，词表大小)和传递到下一个的隐状态
         return torch.cat(Outputs, dim=0), H
+    
+    class RNN(nn.Module):
+        def __init__(self, vocab_size, embed_dim, hidden_size):
+            super().__init__()
+            self.embed_dim = embed_dim
+            self.hidden_size = hidden_size
+
+            self.embedding = nn.Embedding(vocab_size, embed_dim)
+            self.rnn = nn.RNN(embed_dim, hidden_size, batch_first=True)
+            self.fc = nn.Linear(hidden_size, vocab_size)
+
+        def forward(self, X, H):
+            X = self.embedding(X)
+            out, _ = self.rnn(X, H)
+            out = self.fc(out)
+
+            return out
