@@ -4,3 +4,7 @@
 # Vscode
 .vscode
 __pycache__/
+
+.gitignore
+pyproject.toml
+.python-version
