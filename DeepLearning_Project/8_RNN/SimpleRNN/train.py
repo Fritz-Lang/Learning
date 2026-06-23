@@ -1,50 +1,44 @@
+import os
 import torch
 from torch import nn
 from torch import optim
 from tqdm import tqdm
 
+from Config import Config
 from data_loader import get_data_loader
 from SimpleRNN import SimpleRNN
-
-# 超参数
-BATCH_SIZE = 64
-SEQUENCE_LENGTH = 100
-EPOCH_NUM = 10
-LEARNING_RATE = 0.002
-EMBED_DIM = 256
-HIDDEN_SIZE = 512
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备：{device}")
 
     train_loader, _, vocab_size = get_data_loader(
-        batch_size=BATCH_SIZE,
-        sequence_length=SEQUENCE_LENGTH
+        batch_size=Config.BATCH_SIZE,
+        sequence_length=Config.SEQUENCE_LENGTH
     )
 
     model = SimpleRNN(
         vocab_size=vocab_size,
-        embed_dim=EMBED_DIM,
-        hidden_size=HIDDEN_SIZE,
+        embed_dim=Config.EMBED_DIM,
+        hidden_size=Config.HIDDEN_SIZE,
     ).to(device)
     
     # nn.CrossEntropyLoss(input, target)
     # input(N, C)，C为类别；target(N, )
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
 
     print("开始训练模型...")
 
     # 最外层循环：训练次数，在训练集上多次训练以优化模型
-    for epoch in range(EPOCH_NUM):
+    for epoch in range(Config.EPOCH_NUM):
         model.train()
         total_loss = 0
         hidden = None
 
         # 把progress理解为train_loader的一个带有进度展示的装饰器
         # 等价于for (inputs, targets) in train_loader
-        progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{EPOCH_NUM}")
+        progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{Config.EPOCH_NUM}")
         # train_loader是一个迭代器
         # 每次循环都会获得下一个batch_size大小的数据（输入和目标序列）
         # 直到把训练集数据取完为止
@@ -74,6 +68,22 @@ def train():
 
         avg_loss = total_loss/len(train_loader)
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
+
+        MODEL_SAVE_PATH = os.path.join(Config.DATA_DIR, "RNN_MODEL.pth")
+
+        torch.save(
+            {
+                'epoch': Config.EPOCH_NUM,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_loss,
+                'config': Config
+            },
+            MODEL_SAVE_PATH
+        )
+        print(f"模型已保存至 {MODEL_SAVE_PATH}")
+
+    print("模型训练完成！")
 
 if __name__ == '__main__':
     train()

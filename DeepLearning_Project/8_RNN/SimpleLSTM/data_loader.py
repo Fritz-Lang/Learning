@@ -6,14 +6,11 @@ import sys
 import re
 import pickle
 
-#当前脚本目录
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-#项目根目录
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+from Config import Config
+
 #指向数据文件
-CSV_FILE = os.path.join(DATA_DIR, "Shakespeare_data.csv")
-VOCAB_FILE = os.path.join(PROJECT_ROOT, "vocab.pkl")
+CSV_FILE = os.path.join(Config.DATA_DIR, "Shakespeare_data.csv")
+VOCAB_FILE = os.path.join(Config.PROJECT_ROOT, "vocab.pkl")
 
 def check_data_exists():
     '''检查数据文件是否存在'''
