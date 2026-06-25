@@ -70,7 +70,8 @@ def train():
         avg_loss = total_loss/len(train_loader)
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
 
-        MODEL_SAVE_PATH = os.path.join(Config.DATA_DIR, "LSTM_MODEL.pth")
+        DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
+        MODEL_SAVE_PATH = os.path.join(DATA_DIR, "LSTM_MODEL.pth")
 
         torch.save(
             {

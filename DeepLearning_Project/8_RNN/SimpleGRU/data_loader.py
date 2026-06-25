@@ -8,8 +8,9 @@ import pickle
 
 from Config import Config
 
+DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
 #指向数据文件
-CSV_FILE = os.path.join(Config.DATA_DIR, "Shakespeare_data.csv")
+CSV_FILE = os.path.join(DATA_DIR, "Shakespeare_data.csv")
 VOCAB_FILE = os.path.join(Config.PROJECT_ROOT, "vocab.pkl")
 
 def check_data_exists():
