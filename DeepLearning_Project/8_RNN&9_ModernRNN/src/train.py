@@ -5,7 +5,7 @@ from torch import optim
 from tqdm import tqdm
 
 from data_loader import get_data_loader
-from SimpleRNN import SimpleRNN
+from Model import SimpleGRU
 from Config import Config
 
 def train():
@@ -17,12 +17,18 @@ def train():
         sequence_length=Config.SEQUENCE_LENGTH
     )
 
-    model = SimpleRNN(
+    model = SimpleGRU(
         vocab_size=vocab_size,
         embed_dim=Config.EMBED_DIM,
         hidden_size=Config.NUM_HIDDEN,
     ).to(device)
-    
+
+    '''model = SimpleRNN(
+        vocab_size=vocab_size,
+        embed_dim=Config.EMBED_DIM,
+        hidden_size=Config.NUM_HIDDEN,
+    ).to(device)'''
+
     # nn.CrossEntropyLoss(input, target)
     # input(N, C)，C为类别；target(N, )
     criterion = nn.CrossEntropyLoss()
@@ -49,10 +55,9 @@ def train():
             optimizer.zero_grad()
 
             current_batch_size = inputs.size(0)
-            hidden = model.init_state(current_batch_size, device)
-            cell = model.init_state(current_batch_size, device)
+            hidden = model.init_hidden(current_batch_size, device)
             # output size:(seq_len, batch_size, vocab_size)
-            outputs, (hidden, cell) = model(inputs, hidden, cell)
+            outputs, hidden = model(inputs, hidden)
 
             # targets shape（batch_size，seq_len）展开为(batch_size*seq_len, )的一维张量
             targets = targets.view(-1)
@@ -71,7 +76,7 @@ def train():
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
 
         DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-        MODEL_SAVE_PATH = os.path.join(DATA_DIR, "LSTM_MODEL.pth")
+        MODEL_SAVE_PATH = os.path.join(DATA_DIR, "GRU_MODEL.pth")
 
         torch.save(
             {
