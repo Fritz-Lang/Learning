@@ -2,23 +2,23 @@ import torch
 import pickle
 import os
  
-from SimpleGRU import SimpleGRU
+from Model import GRU_API
 from Config import Config
 
 def generate_text(start_str="shall i compare thee to a summer's day?\n", gen_length=500, temperature=0.8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    VOCAB_FILE = os.path.join(Config.PROJECT_ROOT, "vocab.pkl")
     DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-    MODEL_SAVE_PATH = os.path.join(DATA_DIR, "GRU_MODEL.pth")
+    VOCAB_FILE = os.path.join(DATA_DIR, "vocab.pkl")
+    MODEL_SAVE_PATH = os.path.join(DATA_DIR, "GRU_API_MODEL.pth")
 
     with open(VOCAB_FILE, 'rb') as f:
         char_to_ix, ix_to_char, vocab_size = pickle.load(f)
 
-    model = SimpleGRU(
+    model = GRU_API(
         vocab_size=vocab_size,
         embed_dim=Config.EMBED_DIM,
-        hidden_size=Config.HIDDEN_SIZE
+        num_hidden=Config.NUM_HIDDEN
     ).to(device)
 
     checkpoint = torch.load(MODEL_SAVE_PATH, map_location=device)
