@@ -20,7 +20,7 @@ def train():
     model = SimpleGRU(
         vocab_size=vocab_size,
         embed_dim=Config.EMBED_DIM,
-        hidden_size=Config.HIDDEN_SIZE,
+        hidden_size=Config.NUM_HIDDEN,
     ).to(device)
     
     # nn.CrossEntropyLoss(input, target)
