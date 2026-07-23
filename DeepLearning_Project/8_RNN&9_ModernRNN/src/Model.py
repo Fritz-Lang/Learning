@@ -62,17 +62,17 @@ class SimpleGRU(nn.Module):
         # 重置门参数
         self.W_xr = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_hr = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_r = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_r = nn.Parameter(torch.zeros(hidden_size))
 
         # 候选隐状态参数
         self.W_xh = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_hh = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_h = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_h = nn.Parameter(torch.zeros(hidden_size))
 
         # 更新门
         self.W_xz = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_hz = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_z = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_z = nn.Parameter(torch.zeros(hidden_size))
 
         self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
         self.b_q = nn.Parameter(torch.zeros(vocab_size))
@@ -84,12 +84,12 @@ class SimpleGRU(nn.Module):
         embedded = self.embedding(X)
         Outputs = []
         
-        seq_len = embedded[1]
+        seq_len = embedded.shape[1]
         for t in range(seq_len):
             R_t = torch.sigmoid(embedded[:,t,:] @ self.W_xr + H @ self.W_hr + self.b_r)
             H_tilde = torch.tanh(embedded[:,t,:] @ self.W_xh + (R_t * H) @ self.W_hh + self.b_h)
             Z_t = torch.sigmoid(embedded[:,t,:] @ self.W_xz + H @ self.W_hz + self.b_z)
-            H = Z_t @ H + (1 - Z_t) @ H_tilde
+            H = Z_t * H + (1 - Z_t) * H_tilde
             O = H @ self.W_hq + self.b_q
             Outputs.append(O)
             
@@ -105,31 +105,33 @@ class SimpleLSTM(nn.Module):
 
         self.W_xi = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_hi = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_i = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_i = nn.Parameter(torch.zeros(hidden_size))
 
         self.W_xf = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_hf = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_f = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_f = nn.Parameter(torch.zeros(hidden_size))
 
         self.W_xo = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_ho = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_o = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_o = nn.Parameter(torch.zeros(hidden_size))
 
         self.W_xc = nn.Parameter(torch.randn(embed_dim, hidden_size)*0.01)
         self.W_hc = nn.Parameter(torch.randn(hidden_size, hidden_size)*0.01)
-        self.b_c = nn.Parameter(torch.zeros(hidden_size, hidden_size))
+        self.b_c = nn.Parameter(torch.zeros(hidden_size))
 
         self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
         self.b_q = nn.Parameter(torch.zeros(vocab_size))
  
-    def init_state(self, batch_size, device=None):
-        return torch.zeros(batch_size, self.hidden_size).to(device)
+    def init_hidden(self, batch_size, device=None):
+        H = torch.zeros(batch_size, self.hidden_size).to(device)
+        C = torch.zeros_like(H)
+        return H, C
     
     def forward(self, X, H, C):
         embedded = self.embedding(X)
         Outputs = []
 
-        seq_len = embedded[1]
+        seq_len = embedded.shape[1]
         for t in range(seq_len):
             I_t = torch.sigmoid(embedded[:,t,:] @ self.W_xi + H @ self.W_hi + self.b_i)
             F_t = torch.sigmoid(embedded[:,t,:] @ self.W_xf + H @ self.W_hf + self.b_f)
