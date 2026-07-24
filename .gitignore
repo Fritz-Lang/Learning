@@ -3,4 +3,7 @@
 
 # Vscode
 .venv
+
+# ai
 .codex
+AGENTS.md
