@@ -24,8 +24,9 @@ class SimpleRNN(nn.Module):
         self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
         self.b_q = nn.Parameter(torch.zeros(vocab_size))
 
-    def init_hidden(self, batch_size, device=None):
-        return torch.zeros(batch_size, self.hidden_size).to(device)
+    def init_hidden(self, batch_size):
+        device = next(self.parameters()).device
+        return torch.zeros(batch_size, self.hidden_size, device=device)
 
     def forward(self, X, H):
         # 输入X形状（批量大小，时间步数），调用词嵌入层embedding，将输入展开成（时间步数，批量大小，嵌入维度）
@@ -77,8 +78,9 @@ class SimpleGRU(nn.Module):
         self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
         self.b_q = nn.Parameter(torch.zeros(vocab_size))
 
-    def init_hidden(self, batch_size, device=None):
-        return torch.zeros(batch_size, self.hidden_size).to(device)
+    def init_hidden(self, batch_size):
+        device = next(self.parameters()).device
+        return torch.zeros(batch_size, self.hidden_size, device=device)
     
     def forward(self, X, H):
         embedded = self.embedding(X)
@@ -122,12 +124,14 @@ class SimpleLSTM(nn.Module):
         self.W_hq = nn.Parameter(torch.randn(hidden_size, vocab_size)*0.01)
         self.b_q = nn.Parameter(torch.zeros(vocab_size))
  
-    def init_hidden(self, batch_size, device=None):
-        H = torch.zeros(batch_size, self.hidden_size).to(device)
+    def init_hidden(self, batch_size):
+        device = next(self.parameters()).device
+        H = torch.zeros(batch_size, self.hidden_size, device=device)
         C = torch.zeros_like(H)
         return H, C
     
-    def forward(self, X, H, C):
+    def forward(self, X, state):
+        H, C = state
         embedded = self.embedding(X)
         Outputs = []
 

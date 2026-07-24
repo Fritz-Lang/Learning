@@ -5,10 +5,20 @@ from torch import optim
 from tqdm import tqdm
 
 from data_loader import get_data_loader
-from Model import SimpleGRU, GRU_API
+from Model import SimpleRNN, SimpleGRU, SimpleLSTM, RNN_API, GRU_API, LSTM_API
 from Config import Config
 
-def train_simple_model():
+# 模型名 → 模型类的映射
+MODEL_MAP = {
+    "simple_rnn": SimpleRNN,
+    "simple_gru": SimpleGRU,
+    "simple_lstm": SimpleLSTM,
+    "rnn_api": RNN_API,
+    "gru_api": GRU_API,
+    "lstm_api": LSTM_API,
+}
+
+def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备：{device}")
 
@@ -17,10 +27,12 @@ def train_simple_model():
         sequence_length=Config.SEQUENCE_LENGTH
     )
 
-    model = SimpleGRU(
-        vocab_size=vocab_size,
-        embed_dim=Config.EMBED_DIM,
-        hidden_size=Config.NUM_HIDDEN,
+    # 根据 Config.MODEL_TYPE 选择模型，六个模型构造参数位置顺序一致
+    model_cls = MODEL_MAP[Config.MODEL_TYPE]
+    model = model_cls(
+        vocab_size,
+        Config.EMBED_DIM, 
+        Config.NUM_HIDDEN
     ).to(device)
 
     # nn.CrossEntropyLoss(input, target)
@@ -49,7 +61,7 @@ def train_simple_model():
             optimizer.zero_grad()
 
             current_batch_size = inputs.size(0)
-            hidden = model.init_hidden(current_batch_size, device)
+            hidden = model.init_hidden(current_batch_size)
             # output size:(seq_len, batch_size, vocab_size)
             outputs, hidden = model(inputs, hidden)
 
@@ -70,70 +82,7 @@ def train_simple_model():
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
 
         DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-        MODEL_SAVE_PATH = os.path.join(DATA_DIR, "SIMPLE_GRU_MODEL.pth")
-
-        torch.save(
-            {
-                'epoch': Config.EPOCH_NUM,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': avg_loss,
-                'config': Config
-            },
-            MODEL_SAVE_PATH
-        )
-        print(f"模型已保存至 {MODEL_SAVE_PATH}")
-
-def train_api_model():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"使用设备：{device}")
-
-    train_loader, _, vocab_size = get_data_loader(
-        batch_size=Config.BATCH_SIZE,
-        sequence_length=Config.SEQUENCE_LENGTH
-    )
-
-    model = GRU_API(
-        vocab_size=vocab_size,
-        embed_dim=Config.EMBED_DIM,
-        num_hidden=Config.NUM_HIDDEN,
-    ).to(device)
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
-
-    print("开始训练模型...")
-
-    for epoch in range(Config.EPOCH_NUM):
-        model.train()
-        total_loss = 0
-        hidden = None
-
-        progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{Config.EPOCH_NUM}")
-        for (inputs, targets) in progress:
-            inputs, targets = inputs.to(device), targets.to(device)
-
-            optimizer.zero_grad()
-
-            current_batch_size = inputs.size(0)
-            hidden = model.init_hidden(current_batch_size)
-            outputs, hidden = model(inputs, hidden)
-
-            targets = targets.view(-1)
-
-            loss = criterion(outputs, targets)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-            optimizer.step()
-
-            total_loss += loss.item()
-            progress.set_postfix(loss=loss.item())
-
-        avg_loss = total_loss/len(train_loader)
-        print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
-
-        DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-        MODEL_SAVE_PATH = os.path.join(DATA_DIR, "API_GRU_MODEL.pth")
+        MODEL_SAVE_PATH = os.path.join(DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
 
         torch.save(
             {
@@ -148,4 +97,4 @@ def train_api_model():
         print(f"模型已保存至 {MODEL_SAVE_PATH}")
 
 if __name__ == '__main__':
-    train_api_model()
+    train()
