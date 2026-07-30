@@ -4,6 +4,7 @@ from torch import nn
 # nn.Module类torch模块里提供的一个模型构造类 (nn.Module)，可以继承它来定义我们想要的模型
 # 模型定义应包括两个主要部分：参数初始化（__init__方法）和前向传播（forward方法）
 
+# RNN
 class SimpleRNN(nn.Module):
     def __init__(self, vocab_size, embed_dim, hidden_size):
         super().__init__()
@@ -147,6 +148,10 @@ class SimpleLSTM(nn.Module):
             Outputs.append(O)
 
         return torch.cat(Outputs, dim=0), (H, C)
+
+'''
+以上三个都不使用，单纯为了学习搭建
+'''
 
 # 基于高级API搭建的RNN，GRU，LSTM
 class RNN_API(nn.Module):
