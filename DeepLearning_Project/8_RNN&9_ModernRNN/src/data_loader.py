@@ -38,6 +38,8 @@ def tokenize(lines, token="word"):
         return [line.split() for line in lines]
     elif token == "char":
         return [list(line) for line in lines]
+    else:
+        raise ValueError(f"Unknown token type: {token}")
 
 def prepare_data(sequence_length=50):
     '''加载、预处理数据并创建DataLoader'''
