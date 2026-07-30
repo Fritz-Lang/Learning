@@ -5,7 +5,7 @@ import os
 from Model import GRU_API
 from Config import Config
 
-def generate_text(start_str="shall i compare thee to a summer's day?\n", gen_length=500, temperature=0.8):
+def generate_text(start_str="shall i compare thee to a summer's day", gen_length=500, temperature=0.8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
@@ -54,7 +54,7 @@ def generate_text(start_str="shall i compare thee to a summer's day?\n", gen_len
             top_i = torch.multinomial(output, 1)[0]
             # 映射回字符
             predicted_char = ix_to_char[top_i.item()]
-            generated_text += predicted_char
+            generated_text += " " + predicted_char
             # 把刚生成的字符作为下一轮循环的输入
             input_tensor = torch.tensor([[top_i]], dtype=torch.long).to(device)
  
@@ -64,4 +64,4 @@ def generate_text(start_str="shall i compare thee to a summer's day?\n", gen_len
  
 
 if __name__ == '__main__':
-    generate_text(start_str="from fairest creatures we desire increase,\n", gen_length=400, temperature=0.8)
+    generate_text(start_str="from fairest creatures we desire increase", gen_length=400, temperature=0.8)
