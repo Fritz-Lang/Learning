@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 import re
 import pickle
+from collections import Counter
 
 from Config import Config
 
@@ -48,16 +49,18 @@ def prepare_data(sequence_length=50):
 
     #读入数据
     print(f"从{CSV_FILE}读取数据")
-    lines = read_shakespeare_data(CSV_FILE)
+    data = read_shakespeare_data(CSV_FILE)
 
-    #单词词元
-    tokens = tokenize(lines)
-    #台词原文列表
-    text = [token for line in tokens for token in line]
+    tokenized_data = tokenize(data)# 单词级词元化
+    # 台词原文的单词列表
+    text = [token for line in tokenized_data for token in line]
 
+    # 统计台词原文的单词词频
+    counter = Counter(text)
+    tokens_freq = sorted(counter.items(), key=lambda x:x[1])# 词频升序排列
+    freq2_text = [word for word, freq in tokens_freq if freq > 2]
     #词表
-    vocab = sorted(set(text))
-    #词表大小
+    vocab = ['<unk>'] + freq2_text
     vocab_size = len(vocab)
 
     #创建两个字典，一将单词转为数字，二将数字转回单词
@@ -69,8 +72,9 @@ def prepare_data(sequence_length=50):
         pickle.dump((token_to_ix, ix_to_token, vocab_size), file)
     print(f"词表存入{VOCAB_FILE}, 词汇量大小{vocab_size}")
 
+    unk_idx = token_to_ix['<unk>']
     #台词原文转为整数序列
-    text_as_int = [token_to_ix[ch] for ch in text]
+    text_as_int = [token_to_ix.get(ch, unk_idx) for ch in text]
 
     #输入序列和目标序列
     input_seqs = []
