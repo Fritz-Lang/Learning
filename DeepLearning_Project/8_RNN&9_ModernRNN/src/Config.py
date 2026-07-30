@@ -12,6 +12,7 @@ class Config:
     NUM_HIDDEN = 512
 
     # 可选: simple_rnn | simple_gru | simple_lstm | rnn_api | gru_api | lstm_api
+    # 暂不使用simple模型，由于模型为手写，参数不匹配
     MODEL_TYPE = "gru_api"
 
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
