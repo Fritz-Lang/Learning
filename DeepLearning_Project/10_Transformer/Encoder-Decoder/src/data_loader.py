@@ -6,9 +6,10 @@ from collections import Counter
 from torch.utils.data import Dataset, DataLoader
 from Config import Config
 
-TXT_FILE = os.path.join(Config.PROJECT_PATH, "cmn-eng.txt")
-ENGLISH_VOCAB_FILE = os.path.join(Config.PROJECT_PATH, "ENGLISH_VOCAB_FILE")
-CHINESE_VOCAB_FILE = os.path.join(Config.PROJECT_PATH, "CHINESE_VOCAB_FILE")
+DATA_FILE = os.path.join(Config.PROJECT_ROOT, "data")
+TXT_FILE = os.path.join(DATA_FILE, "cmn-eng.txt")
+ENGLISH_VOCAB_FILE = os.path.join(DATA_FILE, "ENGLISH_VOCAB_FILE")
+CHINESE_VOCAB_FILE = os.path.join(DATA_FILE, "CHINESE_VOCAB_FILE")
 
 def check_data_exists():
     '''检查数据文件是否存在'''

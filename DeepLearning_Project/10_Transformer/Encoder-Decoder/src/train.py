@@ -31,7 +31,7 @@ def train():
         num_layers=Config.NUM_LAYERS,
         dropout=Config.DROPOUT
     )
-    model = EncoderDecoder(encoder, decoder)
+    model = EncoderDecoder(encoder, decoder).to(device)
 
     criterion = nn.CrossEntropyLoss(ignore_index=tgt_pad_idx)
     optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
@@ -41,24 +41,14 @@ def train():
     for epoch in range(Config.NUM_EPOCHS):
         model.train()
         total_loss = 0
-        hidden = None
 
         progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{Config.NUM_EPOCHS}")
-        for (inputs, targets) in progress:
-            inputs, targets = inputs.to(device), targets.to(device)
+        for (src, tgt_input, tgt_target) in progress:
+            src, tgt_input, tgt_target = src.to(device), tgt_input.to(device), tgt_target.to(device)
 
             optimizer.zero_grad()
-
-            current_batch_size = inputs.size(0)
-            hidden = model.init_hidden(current_batch_size)
-            # output size:(seq_len, batch_size, vocab_size)
-            outputs, hidden = model(inputs, hidden)
-
-            # targets shape（batch_size，seq_len）展开为(batch_size*seq_len, )的一维张量
-            targets = targets.view(-1)
-
-            # 根据评价函数计算损失并反向传播+梯度裁剪+参数更新
-            loss = criterion(outputs, targets)
+            outputs, _ = model(src, tgt_input)
+            loss = criterion(outputs.permute(0, 2, 1), tgt_target)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
@@ -71,7 +61,7 @@ def train():
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
 
         DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-        MODEL_SAVE_PATH = os.path.join(DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
+        MODEL_SAVE_PATH = os.path.join(DATA_DIR, "EncoderDecoder_MODEL.pth")
 
         torch.save(
             {

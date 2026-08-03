@@ -12,4 +12,5 @@ class Config:
     NUM_EPOCHS = 10
     DEVICE = device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
