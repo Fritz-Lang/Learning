@@ -1,12 +1,14 @@
 import os
 import sys
 import torch
-import collections
+import pickle
+from collections import Counter
 from torch.utils.data import Dataset, DataLoader
 from Config import Config
 
 TXT_FILE = os.path.join(Config.PROJECT_PATH, "cmn-eng.txt")
-CLEANED_TXT_FILE = os.path.join(Config.PROJECT_PATH, "cleaned-cmn-eng.txt")
+ENGLISH_VOCAB_FILE = os.path.join(Config.PROJECT_PATH, "ENGLISH_VOCAB_FILE")
+CHINESE_VOCAB_FILE = os.path.join(Config.PROJECT_PATH, "CHINESE_VOCAB_FILE")
 
 def check_data_exists():
     '''检查数据文件是否存在'''
@@ -14,23 +16,19 @@ def check_data_exists():
         print("未找到文件")
         sys.exit(1)
 
-def data_clean():
-    '''读入数据，返回英文序列和中文序列'''
-    data_src = []
-    data_tgt = []
-    with open(TXT_FILE, "r", encoding='utf-8') as Fin:
-        for line in Fin:
-            line = line.strip()
-            parts = line.split("\t")
-
-            if len(parts) < 2:
-                continue
-            data_src.append(parts[0].strip())
-            data_tgt.append(parts[1].strip())
-    return data_src, data_tgt
+def read_translation_data(path):
+    '''数据清洗，列表包含对应字符串'''
+    src_data = []
+    tgt_data = []
+    with open(path, "r", encoding="utf-8") as file:
+        for line in file.readlines():
+            line = line.strip('\n').split('\t')
+            src_data.append(line[0])
+            tgt_data.append(line[1])
+    return src_data, tgt_data
 
 def tokenize(data):
-    '''将文本行拆分为单词词元'''
+    '''将字符串拆分成对应单词级列表'''
     tokenize_data = []
 
     punct = set(',.!?。？！，、')
@@ -68,104 +66,89 @@ def tokenize(data):
 
     return tokenize_data
 
-# 构建词表
-def word_counter(tokenized_data):
-    if (len(tokenized_data) == 0 or isinstance(tokenized_data[0], list)): 
-        tokens = [token for line in tokenized_data for token in line]
-    return collections.Counter(tokens)
+def create_vocab(data, num_steps, vocab_path):
+    '''根据文本列表构建对应词表'''
+    tokenized_data = tokenize(data)
+    listed_data = [token for line in tokenized_data for token in line]# 二维列表展平
 
-class Vocab():
-    def __init__(self, tokenized_data, min_freq, special_tokens):
-        counter = word_counter(tokenized_data)
-        self._token_freqs = sorted(counter.items(), key=lambda x: x[1], reverse=True)
+    counter = Counter(listed_data)
+    tokens_freq = sorted(counter.items(), key=lambda x:x[1])
+    freq2_text = [word for word, freq in tokens_freq if freq > 2]
 
-        self.idx_to_token = ['<unk>'] + special_tokens
-        self.token_to_idx = {token: idx for idx, token in enumerate(self.idx_to_token)}
+    vocab = ['<unk>', '<pad>', '<bos>', '<eos>'] + freq2_text
+    vocab_size = len(vocab)
 
-        for token, freq in self._token_freqs:
-            if freq < min_freq:
-                break  # 因为已经按频率降序排列，后面的词频只会更低，直接跳出
-            if token not in self.token_to_idx:
-                self.idx_to_token.append(token)
-                self.token_to_idx[token] = len(self.idx_to_token) - 1
+    token_to_ix = {ch: i for i, ch in enumerate(vocab)}
+    ix_to_token = {i: ch for i, ch in enumerate(vocab)}
 
-    def __len__(self):
-        """返回词表大小（包含特殊词元）"""
-        return len(self.idx_to_token)
-    
-    def __getitem__(self, tokens):
-        """根据输入获取索引：
-           - 如果输入是单个词元，返回单个索引
-           - 如果输入是列表或元组，返回索引列表
-        """
-        if not isinstance(tokens, (list, tuple)):
-            # 如果词不在词表中，返回 '<unk>' 对应的索引（即 0）
-            return self.token_to_idx.get(tokens, self.unk)
-        return [self.__getitem__(token) for token in tokens]
-    
-    def to_tokens(self, indices):
-        """根据索引列表转换回词元列表：
-           - 如果输入是单个索引，返回单个词元
-           - 如果输入是列表或元组，返回词元列表
-        """
-        if not isinstance(indices, (list, tuple)):
-            return self.idx_to_token[indices]
-        return [self.idx_to_token[index] for index in indices]
+    with open(vocab_path, "wb") as file:
+        pickle.dump((token_to_ix, ix_to_token, vocab_size), file)
+    print(f"词表存入{vocab_path}, 词汇量大小{vocab_size}")
 
-    @property
-    def unk(self):
-        """未知词元的索引，固定为 0"""
-        return 0
+    unk_idx = token_to_ix['<unk>']
+    #将二维列表原文转为二维整数序列
+    text_as_int = [[token_to_ix.get(ch, unk_idx) for ch in line]for line in tokenized_data]
 
-    @property
-    def token_freqs(self):
-        """返回已排序的词频列表（用于外部查看）"""
-        return self._token_freqs
+    bos_idx = token_to_ix['<bos>']
+    eos_idx = token_to_ix['<eos>']
+    pad_idx = token_to_ix['<pad>']
 
-def prepare_data():
+    # 超长序列只保留前 num_steps - 1 个词元，留一个位置给 <bos> 或 <eos>
+    begin_seqs = []
+    end_seqs = []
+    for line in text_as_int:
+        line = line[:num_steps - 1]
+
+        # <bos> 放在序列首部，<eos> 放在序列尾部
+        begin_seq = [bos_idx] + line
+        end_seq = line + [eos_idx]
+
+        # 右侧补齐 <pad> 到统一长度 num_steps
+        if len(begin_seq) < num_steps:
+            begin_seq += [pad_idx] * (num_steps - len(begin_seq))
+        if len(end_seq) < num_steps:
+            end_seq += [pad_idx] * (num_steps - len(end_seq))
+
+        begin_seqs.append(begin_seq)
+        end_seqs.append(end_seq)
+
+    return begin_seqs, end_seqs, vocab_size
+
+def prepare_data(sequence_length=8):
     '''加载、预处理数据并创建DataLoader'''
     check_data_exists()
-    data_clean()
+    print(f"从{TXT_FILE}读取数据")
+    src_data, tgt_data = read_translation_data(TXT_FILE)
 
-    print(f"从{CLEANED_TXT_FILE}读取数据")
-    text_src, text_tgt = read_txt_data(CLEANED_TXT_FILE)
+    src_input_seqs, _, src_vocab_size = create_vocab(src_data, sequence_length, ENGLISH_VOCAB_FILE)
+    tgt_input_seqs, tgt_target_seqs, tgt_vocab_size = create_vocab(tgt_data, sequence_length, CHINESE_VOCAB_FILE)
 
-    #源序列和对应目标序列
-    tokens_src = tokenize(text_src)
-    tokens_tgt = tokenize(text_tgt)
-
-    #词表
-    eng_vocab, eng_vocab_size = create_vocab(tokens_src)
-    cmn_vocab, cmn_vocab_size = create_vocab(tokens_tgt)
-
-    #台词原文转为整数序列
-    text_as_int = [token_to_ix[ch] for ch in text]
-
-    class translateDataset(Dataset):
-        def __init__(self, sequences, targets):
-            self.sequences = sequences
-            self.targets = targets
+    class TranslateDataset(Dataset):
+        def __init__(self, src_input_seqs, tgt_input_seqs, tgt_target_seqs):
+            self.src_input_seqs = src_input_seqs
+            self.tgt_input_seqs = tgt_input_seqs
+            self.tgt_target_seqs = tgt_target_seqs
 
         def __len__(self):
-             return len(self.sequences)
+             return len(self.src_input_seqs)
         
         def __getitem__(self, idx):
-             return torch.tensor(self.sequences[idx], dtype=torch.long), \
-                torch.tensor(self.targets[idx],dtype=torch.long)
+             return torch.tensor(self.src_input_seqs[idx], dtype=torch.long), \
+                torch.tensor(self.tgt_input_seqs[idx],dtype=torch.long), \
+                torch.tensor(self.tgt_target_seqs[idx],dtype=torch.long)
         
-    dataset = translateDataset(input_seqs, target_seqs)
+    dataset = TranslateDataset(src_input_seqs, tgt_input_seqs, tgt_target_seqs)
 
-    return dataset, vocab_size
+    return dataset, src_vocab_size, tgt_vocab_size
 
 def get_data_loader(batch_size = 64, sequence_length = 100):
-    dataset, vocab_size = prepare_data(sequence_length)
+    dataset, src_vocab_size, tgt_vocab_size = prepare_data(sequence_length)
 
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
-
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, test_loader, vocab_size
+    return train_loader, test_loader, src_vocab_size, tgt_vocab_size

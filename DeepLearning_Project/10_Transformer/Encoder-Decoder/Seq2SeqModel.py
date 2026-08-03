@@ -2,10 +2,10 @@ import torch
 from torch import nn
 
 class Seq2SeqEncoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, num_layers, dropout=0):
+    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.gru = nn.GRU(embed_size, hidden_size, num_layers, dropout=dropout)
+        self.gru = nn.GRU(embed_size, num_hiddens, num_layers, dropout=dropout)
 
     def forward(self, X):
         X = self.embedding(X)
@@ -14,20 +14,20 @@ class Seq2SeqEncoder(nn.Module):
         return output, state
     
 class Seq2SeqDecoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, num_layers, dropout=0):
+    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.gru = nn.GRU(embed_size, hidden_size, num_layers, dropout=dropout)
-        self.linear = nn.Linear(hidden_size, vocab_size)
+        self.gru = nn.GRU(embed_size + num_hiddens, num_hiddens, num_layers, dropout=dropout)
+        self.dense = nn.Linear(num_hiddens, vocab_size)
 
     def init_state(self, encoder_output):
         return encoder_output[1]
     
     def forward(self, X, H):
         X = self.embedding(X).permute(1, 0, 2)
-        context = state[-1].repeat(X.shape[0], 1, 1)
+        context = H[-1].repeat(X.shape[0], 1, 1)
         X_and_context = torch.cat((X, context), 2)
-        output, state = self.rnn(X_and_context, state)
+        output, state = self.gru(X_and_context, H)
         output = self.dense(output).permute(1, 0, 2)
         return output, state
     
