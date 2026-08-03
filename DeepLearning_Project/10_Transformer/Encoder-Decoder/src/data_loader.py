@@ -75,7 +75,7 @@ def create_vocab(data, num_steps, vocab_path):
     tokens_freq = sorted(counter.items(), key=lambda x:x[1])
     freq2_text = [word for word, freq in tokens_freq if freq > 2]
 
-    vocab = ['<unk>', '<pad>', '<bos>', '<eos>'] + freq2_text
+    vocab = ['<pad>', '<unk>', '<bos>', '<eos>'] + freq2_text
     vocab_size = len(vocab)
 
     token_to_ix = {ch: i for i, ch in enumerate(vocab)}
@@ -96,6 +96,7 @@ def create_vocab(data, num_steps, vocab_path):
     # 超长序列只保留前 num_steps - 1 个词元，留一个位置给 <bos> 或 <eos>
     begin_seqs = []
     end_seqs = []
+
     for line in text_as_int:
         line = line[:num_steps - 1]
 
@@ -112,7 +113,7 @@ def create_vocab(data, num_steps, vocab_path):
         begin_seqs.append(begin_seq)
         end_seqs.append(end_seq)
 
-    return begin_seqs, end_seqs, vocab_size
+    return begin_seqs, end_seqs, vocab_size, pad_idx
 
 def prepare_data(sequence_length=8):
     '''加载、预处理数据并创建DataLoader'''
@@ -120,8 +121,8 @@ def prepare_data(sequence_length=8):
     print(f"从{TXT_FILE}读取数据")
     src_data, tgt_data = read_translation_data(TXT_FILE)
 
-    src_input_seqs, _, src_vocab_size = create_vocab(src_data, sequence_length, ENGLISH_VOCAB_FILE)
-    tgt_input_seqs, tgt_target_seqs, tgt_vocab_size = create_vocab(tgt_data, sequence_length, CHINESE_VOCAB_FILE)
+    src_input_seqs, _, src_vocab_size, _ = create_vocab(src_data, sequence_length, ENGLISH_VOCAB_FILE)
+    tgt_input_seqs, tgt_target_seqs, tgt_vocab_size, tgt_pad_idx = create_vocab(tgt_data, sequence_length, CHINESE_VOCAB_FILE)
 
     class TranslateDataset(Dataset):
         def __init__(self, src_input_seqs, tgt_input_seqs, tgt_target_seqs):
@@ -133,16 +134,16 @@ def prepare_data(sequence_length=8):
              return len(self.src_input_seqs)
         
         def __getitem__(self, idx):
-             return torch.tensor(self.src_input_seqs[idx], dtype=torch.long), \
-                torch.tensor(self.tgt_input_seqs[idx],dtype=torch.long), \
-                torch.tensor(self.tgt_target_seqs[idx],dtype=torch.long)
+             return (torch.tensor(self.src_input_seqs[idx], dtype=torch.long),
+                     torch.tensor(self.tgt_input_seqs[idx], dtype=torch.long),
+                     torch.tensor(self.tgt_target_seqs[idx], dtype=torch.long))
         
     dataset = TranslateDataset(src_input_seqs, tgt_input_seqs, tgt_target_seqs)
 
-    return dataset, src_vocab_size, tgt_vocab_size
+    return dataset, src_vocab_size, tgt_vocab_size, tgt_pad_idx
 
-def get_data_loader(batch_size = 64, sequence_length = 100):
-    dataset, src_vocab_size, tgt_vocab_size = prepare_data(sequence_length)
+def get_data_loader(batch_size = 64, sequence_length = 8):
+    dataset, src_vocab_size, tgt_vocab_size, tgt_pad_idx = prepare_data(sequence_length)
 
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
@@ -151,4 +152,4 @@ def get_data_loader(batch_size = 64, sequence_length = 100):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, test_loader, src_vocab_size, tgt_vocab_size
+    return train_loader, test_loader, src_vocab_size, tgt_vocab_size, tgt_pad_idx

@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 class Seq2SeqEncoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0):
+    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0.0):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_size)
         self.gru = nn.GRU(embed_size, num_hiddens, num_layers, dropout=dropout)
@@ -14,7 +14,7 @@ class Seq2SeqEncoder(nn.Module):
         return output, state
     
 class Seq2SeqDecoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0):
+    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0.0):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_size)
         self.gru = nn.GRU(embed_size + num_hiddens, num_hiddens, num_layers, dropout=dropout)
