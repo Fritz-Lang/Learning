@@ -1,151 +1,99 @@
-# AGENTS.md — 项目指引
+# AGENTS.md
 
-## 项目概述
+## 项目基础信息
 
-本项目是「动手学深度学习」课程的学习与实践仓库，使用 PyTorch 从零实现经典模型并对比高级 API 版本。
-
-- **语言**: Python 3.9
-- **框架**: PyTorch（torch, torch.nn, torch.optim）, torchtext
-- **辅助**: tqdm（进度条）, pandas（数据读取）, numpy
-- **环境**: `.venv` 虚拟环境，`pyproject.toml` 管理依赖
+| 项目 | 说明 |
+| --- | --- |
+| 项目定位 | 李沐老师 D2L 课程的学习与实践仓库 |
+| 内容范围 | 从线性回归到卷积神经网络为 D2L 代码复现；从循环神经网络开始为实践部分 |
+| 开发语言 | Python 3.9 |
+| 深度学习框架 | PyTorch |
+| 辅助库 | `tqdm`、`pandas`、`numpy` |
+| 环境管理 | `uv` |
 
 ## 项目结构
 
+当前工作区结构如下，省略 `.venv/`、`.git/` 等环境目录：
+
 ```
-├── main.py                          # 入口（占位）
-├── pyproject.toml                   # 项目配置
-├── .python-version                  # Python 3.9
-├── .venv/                           # 虚拟环境
-├── DeepLearning_Project/
-│   ├── BeginToCNN/                  # 1️⃣ 基础：回归 → MLP → CNN → LeNet
-│   │   ├── 3_Regression.ipynb
-│   │   ├── 4_MLP.ipynb
-│   │   ├── 5_DeepLearningComputing.ipynb
-│   │   ├── 6_Convolution.ipynb
-│   │   └── 7_ModernLeNet.ipynb
-│   ├── 8_RNN&9_ModernRNN/           # 2️⃣ RNN 及变体
-│   │   ├── src/
-│   │   │   ├── Config.py            # 超参数 + 模型选择
-│   │   │   ├── Model.py             # 手写 RNN/GRU/LSTM + API 版本
-│   │   │   ├── data_loader.py       # Shakespeare 数据集加载
-│   │   │   ├── train.py             # 统一训练入口
-│   │   │   └── generate.py          # 文本生成
-│   │   └── data/
-│   └── 10_Transformer/              # 3️⃣ Transformer 及现代架构
-│       ├── Attention/
-│       └── Encoder-Decoder/
-│           ├── Config.py
-│           ├── Seq2SeqModel.py      # Encoder + Decoder
-│           ├── Data_loader.py       # 中英平行语料
-│           └── train.py
-└── MachineLearning_Project/         # 传统机器学习（待扩展）
-    ├── RF/                          # 随机森林
-    └── SVM/                         # 支持向量机
+.
+├── .gitignore
+├── .python-version                  # Python 版本：3.9.6
+├── AGENTS.md                        # 项目协作与代码修改规范
+├── README.md                        # 项目说明与快速开始
+├── main.py                          # 统一入口
+├── pyproject.toml                   # uv / PyTorch 项目配置
+└── DeepLearning_Project/
+    ├── BeginToCNN/                  # D2L 代码复现：线性回归 → CNN → LeNet
+    │   ├── 3_Regression.ipynb
+    │   ├── 4_MLP.ipynb
+    │   ├── 5_DeepLearningComputing.ipynb
+    │   ├── 6_Convolution.ipynb
+    │   └── 7_ModernLeNet.ipynb
+    ├── 8_RNN&9_ModernRNN/           # RNN / GRU / LSTM 实践
+    │   ├── src/
+    │   │   ├── Config.py
+    │   │   ├── Model.py
+    │   │   ├── data_loader.py
+    │   │   ├── train.py
+    │   │   └── generate.py
+    │   └── data/
+    │       ├── Shakespeare_data.csv
+    │       └── vocab.pkl
+    └── 10_Transformer/              # Transformer 实践
+        ├── Attention/
+        │   ├── Attention_Pooling/
+        │   │   ├── config.py
+        │   │   ├── model.py
+        │   │   ├── train.py
+        │   │   └── utils.py
+        │   └── Scoring_Function/    # 空目录，待补充
+        └── Encoder-Decoder/
+            ├── data/
+            │   └── cmn-eng.txt
+            └── src/
+                ├── Config.py
+                ├── Seq2SeqModel.py
+                ├── data_loader.py
+                └── train.py
 ```
 
 ## 核心编码惯例
 
-### 1. Config 类模式
+### 1. 编码前思考
 
-每个模块有独立的 `Config` 类，所有超参数和路径通过类常量管理：
+- 明确假设，不确定时询问而非猜测。
+- 存在歧义时，列出多种解释，不默默选定单一方案。
+- 如果任务有明显更简单的做法，直接指出优化思路。
+- 发现代码矛盾、逻辑不一致时及时暂停，请求信息澄清。
 
-```python
-class Config:
-    BATCH_SIZE = 64
-    EPOCH_NUM = 10
-    LEARNING_RATE = 0.002
-    EMBED_DIM = 256
-    NUM_HIDDEN = 512
-    MODEL_TYPE = "simple_gru"    # 模型选择字段
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
-```
+### 2. 简洁优先
 
-**规则**: 切换超参数只能改 Config.py，禁止在代码里硬编码数值。
+- 用最少的代码解决问题，拒绝冗余实现。
+- 不为一次性需求创建抽象层、复杂架构。
+- 不盲目增加扩展性、可配置性，应对“未来可能用到”的场景。
+- 若代码可大幅精简，主动重写优化。
+- 校验标准：以资深工程师视角判断，代码若过于复杂，立即简化。
 
-### 2. 模型组织
+### 3. 精准修改
 
-每个模块的模型文件分两层：
+- 仅修改与当前任务直接相关的代码内容。
+- 不顺手优化相邻代码、注释、排版格式。
+- 不重构原本可以正常运行的代码模块。
+- 严格匹配项目现有代码风格，保留原有编码习惯。
+- 因本次修改产生的无效导入、废弃变量，可直接删除。
+- 发现项目中原有的死代码、冗余内容，仅做文字提醒，不擅自删除。
 
-- **手写实现**: 继承 `nn.Module`，用 `nn.Parameter` 显式定义权重矩阵。含中文注释解释公式原理。
-- **API 版本**: 使用 `nn.RNN`/`nn.GRU`/`nn.LSTM` 等高级 API，加 `nn.Linear` 输出层。
+### 4. 目标驱动执行
 
-六个模型统一接口：
-```python
-hidden = model.init_hidden(batch_size)       # → tensor 或 (H, C) 元组
-outputs, hidden = model(inputs, hidden)      # 统一调用方式
-```
+| 任务 | 成功标准 |
+| --- | --- |
+| 修复 Bug | 编写用例复现问题，再调试至用例正常通过 |
+| 新增校验功能 | 针对异常输入编写测试用例，保证全部通过 |
+| 代码重构 | 完成重构后，确保原有所有测试用例正常运行 |
+| 多步骤复杂任务 | 先输出简短执行计划，同时标注每一步的验证方式 |
 
-### 3. 训练流程
+## 操作边界
 
-标准训练循环模式：
-
-```python
-def train():
-    device = Config.DEVICE
-    train_loader, test_loader, vocab_size = get_data_loader(...)
-    model = get_model(Config.MODEL_TYPE, vocab_size).to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
-
-    for epoch in range(Config.EPOCH_NUM):
-        model.train()
-        for inputs, targets in tqdm(train_loader):
-            optimizer.zero_grad()
-            hidden = model.init_hidden(inputs.size(0))
-            outputs, hidden = model(inputs, hidden)
-            loss = criterion(outputs, targets.view(-1))
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-            optimizer.step()
-```
-
-### 4. 数据集处理
-
-数据加载统一模式：
-
-```python
-class XxxDataset(Dataset):
-    def __init__(self, sequences, targets): ...
-    def __len__(self): ...
-    def __getitem__(self, idx): ...
-
-dataset = XxxDataset(...)
-train_loader = DataLoader(train_dataset, batch_size=..., shuffle=True)
-```
-
-数据拆分使用 `torch.utils.data.random_split`。
-
-### 5. 注释风格
-
-- 使用**中文注释**解释 ML 概念和设计意图
-- 关键公式和算法原理在注释中说明（如门控机制、注意力计算）
-- 代码逻辑分块的注释使用 `# ----` 分隔
-
-## 修改规则
-
-1. **先读后改**: 修改前必须通读目标文件 + Config + Model + data_loader 三个关联文件
-2. **最小变更**: 使用 `apply_patch` 做手术式编辑，保留原有逻辑、变量命名和结构
-3. **Config 优先**: 任何可变的参数通过 Config 类管理，避免硬编码
-4. **不要复制函数**: 切换模型/超参数通过 Config 字段，而非复制整段训练代码
-5. **保持一致性**: 新增代码匹配现有的命名、缩进、注释风格
-
-## 开发工作流
-
-```
-研究新模型/模块 → 创建主题文件夹 → Config.py → Model.py → data_loader.py → train.py
-```
-
-每个主题文件夹遵循 `{序号}_{名称}/` 命名模式，内部结构：
-- `src/Config.py` — 超参数和路径
-- `src/Model.py` — 模型定义（手写 + API）
-- `src/data_loader.py` — 数据加载和预处理
-- `src/train.py` — 训练入口
-- `src/generate.py` — 推理/生成（可选）
-- `data/` — 原始数据
-
-## 可用资源
-
-- **Skill**: `$deeplearning-skill` — 项目专属的详细修改指南和参考文档
-- **环境**: `source .venv/bin/activate`
-- **Jupyter notebooks**: `BeginToCNN/` 目录下的 `.ipynb` 文件用于实验和可视化
+- 新增依赖需先检查现有依赖，禁止重复引入同类库。
+- 在修改代码之前可以展示哪些将被修改、修改后的样子，但正式修改必须得到同意才可修改。
