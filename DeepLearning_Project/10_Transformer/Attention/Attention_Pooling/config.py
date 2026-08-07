@@ -12,6 +12,7 @@ x_test = torch.arange(0, 5, 0.1) # 测试序列
 y_truth = f(x_test) # 测试样本的真实输出
 
 class Config:
+    n_train = n_train
     x_train = x_train
     y_train = y_train
     x_test = x_test
