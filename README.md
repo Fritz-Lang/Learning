@@ -37,3 +37,4 @@ python main.py
 ```
 
 切换模型：修改 `main.py` 中 `run_training()` 的模型名即可，可选 `simple_rnn` / `simple_gru` / `simple_lstm` / `rnn_api` / `gru_api` / `lstm_api`。
+
