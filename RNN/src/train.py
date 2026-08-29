@@ -1,22 +1,19 @@
 import os
-import torch
-from torch import nn
-from torch import optim
-from tqdm import tqdm
 
-from data_loader import get_data_loader
-from Model import SimpleRNN, SimpleGRU, SimpleLSTM, RNN_API, GRU_API, LSTM_API
+import torch
+import tqdm
 from Config import Config
+from data_loader import get_data_loader
+from Model import GRU_API, LSTM_API, RNN_API
+from torch import nn, optim
 
 # 模型名 → 模型类的映射
 MODEL_MAP = {
-    "simple_rnn": SimpleRNN,
-    "simple_gru": SimpleGRU,
-    "simple_lstm": SimpleLSTM,
     "rnn_api": RNN_API,
     "gru_api": GRU_API,
     "lstm_api": LSTM_API,
 }
+
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,7 +28,7 @@ def train():
     model_cls = MODEL_MAP[Config.MODEL_TYPE]
     model = model_cls(
         vocab_size,
-        Config.EMBED_DIM, 
+        Config.EMBED_DIM,
         Config.NUM_HIDDEN
     ).to(device)
 
@@ -50,7 +47,8 @@ def train():
 
         # 把progress理解为train_loader的一个带有进度展示的装饰器
         # 等价于for (inputs, targets) in train_loader
-        progress = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{Config.EPOCH_NUM}")
+        progress = tqdm.tqdm(
+            train_loader, desc=f"Epoch {epoch + 1}/{Config.EPOCH_NUM}")
         # train_loader是一个迭代器
         # 每次循环都会获得下一个batch_size大小的数据（输入和目标序列）
         # 直到把训练集数据取完为止
@@ -82,7 +80,8 @@ def train():
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
 
         DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-        MODEL_SAVE_PATH = os.path.join(DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
+        MODEL_SAVE_PATH = os.path.join(
+            DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
 
         torch.save(
             {
@@ -95,6 +94,3 @@ def train():
             MODEL_SAVE_PATH
         )
         print(f"模型已保存至 {MODEL_SAVE_PATH}")
-
-if __name__ == '__main__':
-    train()

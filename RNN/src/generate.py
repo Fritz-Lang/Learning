@@ -1,9 +1,10 @@
-import torch
-import pickle
 import os
- 
-from Model import GRU_API
+import pickle
+
+import torch
 from Config import Config
+from Model import GRU_API
+
 
 def generate_text(start_str="shall i compare thee to a summer's day", gen_length=500, temperature=0.8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,7 +38,8 @@ def generate_text(start_str="shall i compare thee to a summer's day", gen_length
     # .unsqueeze(0)：在第0维插入一维，形状变为 (1, seq_len)。这个 1 代表 batch_size
     # 这里可能会问，会不会seq_len和Config中的不一样导致报错？其实不会，因为每次模型只读入一个字符，循环直至结束。
     # (1, seq_len) -> (1, seq_len, embed_dim)，每次只读入(1, embed_dim)
-    input_tensor = torch.tensor(input_seq, dtype=torch.long).unsqueeze(0).to(device)
+    input_tensor = torch.tensor(
+        input_seq, dtype=torch.long).unsqueeze(0).to(device)
     hidden = model.init_hidden(1)
 
     generated_text = start_str
@@ -47,7 +49,7 @@ def generate_text(start_str="shall i compare thee to a summer's day", gen_length
             # 输出output(batch_size, vocab_size)
             # .squeeze(0)：删去第0维元素，形状变回(vocab_size, )
             # .div(temperature)：放大这种类别相似信息
-            # 
+            #
             output = output.squeeze(0).div(temperature).exp()
             # 加权随机抽样，抽一个样本
             # multinomial 返回的是一个一维张量（长度为 1），[0] 取出这个整数标量
@@ -57,11 +59,7 @@ def generate_text(start_str="shall i compare thee to a summer's day", gen_length
             generated_text += " " + predicted_char
             # 把刚生成的字符作为下一轮循环的输入
             input_tensor = torch.tensor([[top_i]], dtype=torch.long).to(device)
- 
+
     print("\n--- 生成的文本 ---")
     print(generated_text)
     print("------------------\n")
- 
-
-if __name__ == '__main__':
-    generate_text(start_str="from fairest creatures we desire increase", gen_length=400, temperature=0.8)
