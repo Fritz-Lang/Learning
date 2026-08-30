@@ -3,7 +3,14 @@ import pickle
 
 import torch
 from Config import Config
-from Model import GRU_API
+from Model import GRU_API, LSTM_API, RNN_API
+
+# 模型名 → 模型类的映射
+MODEL_MAP = {
+    "rnn_api": RNN_API,
+    "gru_api": GRU_API,
+    "lstm_api": LSTM_API,
+}
 
 
 def generate_text(start_str="shall i compare thee to a summer's day", gen_length=500, temperature=0.8):
@@ -11,18 +18,21 @@ def generate_text(start_str="shall i compare thee to a summer's day", gen_length
 
     DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
     VOCAB_FILE = os.path.join(DATA_DIR, "vocab.pkl")
-    MODEL_SAVE_PATH = os.path.join(DATA_DIR, "GRU_API_MODEL.pth")
+    MODEL_SAVE_PATH = os.path.join(
+        DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
 
     with open(VOCAB_FILE, 'rb') as f:
         char_to_ix, ix_to_char, vocab_size = pickle.load(f)
 
-    model = GRU_API(
+    model_cls = MODEL_MAP[Config.MODEL_TYPE]
+    model = model_cls(
         vocab_size=vocab_size,
         embed_dim=Config.EMBED_DIM,
         num_hidden=Config.NUM_HIDDEN
     ).to(device)
 
-    checkpoint = torch.load(MODEL_SAVE_PATH, map_location=device)
+    checkpoint = torch.load(
+        MODEL_SAVE_PATH, map_location=device, weights_only=False)
     # 将数据中的权重字典应用到模型上
     model.load_state_dict(checkpoint['model_state_dict'])
     # 训练意外中断了，恢复优化器的动量状态
@@ -33,7 +43,9 @@ def generate_text(start_str="shall i compare thee to a summer's day", gen_length
     model.eval()
 
     # 将起始字符串转为数字序列
-    input_seq = [char_to_ix[ch] for ch in start_str]
+    # 将起始字符串按词切分，并映射为词表索引（不在词表的词用 <unk> 兜底）
+    unk_idx = char_to_ix['<unk>']
+    input_seq = [char_to_ix.get(ch, unk_idx) for ch in start_str.split()]
     # 转为张量，需要注意的是，pytorch中一维张量 (n,) 会被默认视为列向量
     # .unsqueeze(0)：在第0维插入一维，形状变为 (1, seq_len)。这个 1 代表 batch_size
     # 这里可能会问，会不会seq_len和Config中的不一样导致报错？其实不会，因为每次模型只读入一个字符，循环直至结束。
@@ -63,3 +75,7 @@ def generate_text(start_str="shall i compare thee to a summer's day", gen_length
     print("\n--- 生成的文本 ---")
     print(generated_text)
     print("------------------\n")
+
+
+if __name__ == "__main__":
+    generate_text()

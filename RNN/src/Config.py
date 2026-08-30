@@ -3,13 +3,14 @@ import os
 # 数据集：Kaggle上的莎士比亚戏剧数据集，包含超过11万行角色台词。
 # 下载地址：https://www.kaggle.com/datasets/kingburrito666/shakespeare-plays?resource=download
 
+
 class Config:
-    BATCH_SIZE = 64
-    SEQUENCE_LENGTH = 100
-    EPOCH_NUM = 10
+    BATCH_SIZE = 512
+    SEQUENCE_LENGTH = 50
+    EPOCH_NUM = 5
     LEARNING_RATE = 0.002
-    EMBED_DIM = 256
-    NUM_HIDDEN = 512
+    EMBED_DIM = 128
+    NUM_HIDDEN = 256
 
     # 可选: simple_rnn | simple_gru | simple_lstm | rnn_api | gru_api | lstm_api
     # 暂不使用simple模型，由于模型为手写，参数不匹配

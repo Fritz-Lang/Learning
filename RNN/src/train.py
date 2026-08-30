@@ -1,11 +1,11 @@
 import os
 
 import torch
-import tqdm
 from Config import Config
 from data_loader import get_data_loader
 from Model import GRU_API, LSTM_API, RNN_API
 from torch import nn, optim
+from tqdm.auto import tqdm
 
 # 模型名 → 模型类的映射
 MODEL_MAP = {
@@ -47,7 +47,7 @@ def train():
 
         # 把progress理解为train_loader的一个带有进度展示的装饰器
         # 等价于for (inputs, targets) in train_loader
-        progress = tqdm.tqdm(
+        progress = tqdm(
             train_loader, desc=f"Epoch {epoch + 1}/{Config.EPOCH_NUM}")
         # train_loader是一个迭代器
         # 每次循环都会获得下一个batch_size大小的数据（输入和目标序列）
@@ -79,18 +79,22 @@ def train():
         avg_loss = total_loss/len(train_loader)
         print(f"Epoch {epoch + 1} 完成, 平均训练损失: {avg_loss:.4f}")
 
-        DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
-        MODEL_SAVE_PATH = os.path.join(
-            DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
+    DATA_DIR = os.path.join(Config.PROJECT_ROOT, "data")
+    MODEL_SAVE_PATH = os.path.join(
+        DATA_DIR, f"{Config.MODEL_TYPE.upper()}_MODEL.pth")
 
-        torch.save(
-            {
-                'epoch': Config.EPOCH_NUM,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': avg_loss,
-                'config': Config
-            },
-            MODEL_SAVE_PATH
-        )
-        print(f"模型已保存至 {MODEL_SAVE_PATH}")
+    torch.save(
+        {
+            'epoch': Config.EPOCH_NUM,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': avg_loss,
+            'config': Config
+        },
+        MODEL_SAVE_PATH
+    )
+    print(f"模型已保存至 {MODEL_SAVE_PATH}")
+
+
+if __name__ == "__main__":
+    train()
