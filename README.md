@@ -35,8 +35,8 @@ Python 3.9.6 · PyTorch 2.8.0 · tqdm 4.67.3 · pandas 2.3.3 · numpy 2.0.2
 | 阶段 | 模块 | 内容 |
 |------|------|------|
 | 1 | `BeginToCNN/` | 线性回归 → 多层感知机 → 深度学习计算 → 卷积 → 现代 CNN |
-| 2 | `RNN/` | RNN → GRU → LSTM，手写实现与 API 版对比 |
-| 3 | `Transformer/` | Encoder-Decoder → 注意力汇聚 → Bahdanau 注意力（待完善） |
+| 2 | `RNN/` | RNN → GRU → LSTM → Encoder-Decoder，手写实现与 API 版对比， 引入“编码器-解码器”架构 |
+| 3 | `Transformer/` | 注意力汇聚 → Bahdanau 注意力（待完善） |
 
 RNN 模块遵循 `Config + Model + data_loader + train` 的结构，通过 `Config.MODEL_TYPE` 切换模型。
 
