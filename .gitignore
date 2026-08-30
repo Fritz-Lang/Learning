@@ -3,6 +3,7 @@
 
 # Vscode
 .venv
+.vscode
 
 # ai
 .codex
