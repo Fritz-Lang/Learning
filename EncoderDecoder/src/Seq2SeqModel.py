@@ -19,8 +19,9 @@ class Seq2SeqDecoder(nn.Module):
     def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0.0):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.gru = nn.GRU(embed_size + num_hiddens,
-                          num_hiddens, num_layers, dropout=dropout)
+        self.gru = nn.GRU(
+            embed_size + num_hiddens, num_hiddens, num_layers, dropout=dropout
+        )
         self.dense = nn.Linear(num_hiddens, vocab_size)
 
     def init_state(self, encoder_output):

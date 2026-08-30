@@ -8,8 +8,8 @@ RNN_SRC = os.path.join(
 )
 sys.path.insert(0, RNN_SRC)
 
-from generate import generate_text
-from train import train
+from RNN.src_baseline.generate import generate_text
+from RNN.src_baseline.train import train
 
 
 def main():
