@@ -3,14 +3,13 @@ import os
 import torch
 from Config import Config
 from data_loader import get_data_loader
-from torch import nn, optim
-from tqdm import tqdm
-
-from EncoderDecoder.src.Seq2SeqModel import (
+from Seq2SeqModel import (
     EncoderDecoder,
     Seq2SeqDecoder,
     Seq2SeqEncoder,
 )
+from torch import nn, optim
+from tqdm import tqdm
 
 
 def train():
