@@ -3,13 +3,11 @@ import os
 import sys
 
 # RNN 内部使用平铺导入（from Config import ...），需要把 RNN/src 加入模块搜索路径
-RNN_SRC = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "RNN", "src_baseline"
-)
+RNN_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "RNN", "src")
 sys.path.insert(0, RNN_SRC)
 
-from RNN.src_baseline.generate import generate_text
-from RNN.src_baseline.train import train
+from RNN.src.generate import generate_text
+from RNN.src.train import train
 
 
 def main():
