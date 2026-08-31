@@ -14,6 +14,11 @@ class Seq2SeqEncoder(nn.Module):
         output, state = self.gru(X)
         return output, state
 
+
+"""
+基于加性注意力的Bahdanua注意力
+"""
+
 # 无注意力的解码器，只是将编码器的最终隐状态作为上下文向量
 # 然后将上下文向量和每一步输入拼接作为解码器的输入
 # 但，实际上最终隐状态中有很多无需关注的信息
@@ -29,8 +34,10 @@ class Seq2SeqEncoder(nn.Module):
 def sequence_mask(X, valid_len, value=0.0):
     """在序列中屏蔽不相关的项"""
     maxlen = X.size(1)
-    mask = torch.arange((maxlen), dtype=torch.float32,
-                        device=X.device)[None, :] < valid_len[:, None]
+    mask = (
+        torch.arange((maxlen), dtype=torch.float32, device=X.device)[None, :]
+        < valid_len[:, None]
+    )
     X[~mask] = value
     return X
 
@@ -52,8 +59,8 @@ def masked_softmax(X, valid_lens):
 
 
 class AdditiveAttention(nn.Module):
-    def __init__(self, key_size, query_size, num_hiddens, dropout, **kwargs):
-        super(AdditiveAttention, self).__init__(**kwargs)
+    def __init__(self, key_size, query_size, num_hiddens, dropout):
+        super().__init__()
         self.W_k = nn.Linear(key_size, num_hiddens, bias=False)
         self.W_q = nn.Linear(query_size, num_hiddens, bias=False)
         self.w_v = nn.Linear(num_hiddens, 1, bias=False)
@@ -72,10 +79,12 @@ class Seq2SeqAttentionDecoder(nn.Module):
     def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0.0):
         super().__init__()
         self.attention = AdditiveAttention(
-            num_hiddens, num_hiddens, num_hiddens, dropout)
+            num_hiddens, num_hiddens, num_hiddens, dropout
+        )
         self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.gru = nn.GRU(embed_size + num_hiddens,
-                          num_hiddens, num_layers, dropout=dropout)
+        self.gru = nn.GRU(
+            embed_size + num_hiddens, num_hiddens, num_layers, dropout=dropout
+        )
         self.dense = nn.Linear(num_hiddens, vocab_size)
 
     def init_state(self, encoder_outputs, encoder_valid_lens):
@@ -83,13 +92,36 @@ class Seq2SeqAttentionDecoder(nn.Module):
         return (outputs.permute(1, 0, 2), hidden_state, encoder_valid_lens)
 
     def forward(self, X, H):
+        # enc_outputs的形状为(batch_size,num_steps,num_hiddens).
+        # hidden_state的形状为(num_layers,batch_size, num_hiddens)
         encoder_outputs, hidden_state, encoder_valid_lens = H
         X = self.embedding(X).permute(1, 0, 2)
-        context = H[-1].repeat(X.shape[0], 1, 1)
-        X_and_context = torch.cat((X, context), 2)
-        output, state = self.gru(X_and_context, H)
-        output = self.dense(output).permute(1, 0, 2)
-        return output, state
+        outputs, self._attention_weights = [], []
+        for x in X:
+            # query的形状为(batch_size,1,num_hiddens)
+            query = torch.unsqueeze(hidden_state[-1], dim=1)
+            # context的形状为(batch_size,1,num_hiddens)
+            context = self.attention(
+                query, encoder_outputs, encoder_outputs, encoder_valid_lens
+            )
+            # 在特征维度上连结
+            x = torch.cat((context, torch.unsqueeze(x, dim=1)), dim=-1)
+            # 将x变形为(1,batch_size,embed_size+num_hiddens)
+            out, hidden_state = self.gru(x.permute(1, 0, 2), hidden_state)
+            outputs.append(out)
+            self._attention_weights.append(self.attention.attention_weights)
+        # 全连接层变换后，outputs的形状为
+        # (num_steps,batch_size,vocab_size)
+        outputs = self.dense(torch.cat(outputs, dim=0))
+        return outputs.permute(1, 0, 2), [
+            encoder_outputs,
+            hidden_state,
+            encoder_valid_lens,
+        ]
+
+    @property
+    def attention_weights(self):
+        return self._attention_weights
 
 
 class EncoderDecoder(nn.Module):
@@ -98,7 +130,7 @@ class EncoderDecoder(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    def forward(self, encoder_X, decoder_X):
+    def forward(self, encoder_X, decoder_X, encoder_valid_lens=None):
         encoder_output = self.encoder(encoder_X)
-        dec_state = self.decoder.init_state(encoder_output)
+        dec_state = self.decoder.init_state(encoder_output, encoder_valid_lens)
         return self.decoder(decoder_X, dec_state)
