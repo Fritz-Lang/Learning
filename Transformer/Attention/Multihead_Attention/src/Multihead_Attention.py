@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 
@@ -16,19 +18,8 @@ class Seq2SeqEncoder(nn.Module):
 
 
 """
-基于加性注意力的Bahdanua注意力
+基于缩放点积的多头注意力
 """
-
-# 无注意力的解码器，只是将编码器的最终隐状态作为上下文向量
-# 然后将上下文向量和每一步输入拼接作为解码器的输入
-# 但，实际上最终隐状态中有很多无需关注的信息
-# 解码器的每一步输入只需要上下文向量中对应的信息即可
-# 但上下文向量没法拆分
-# 可以利用注意力机制，将源序列中我想要关注的某一步的信息重点注意
-# 生成新的对应步的上下文向量
-# 而且每一步上下文向量是由前一步的隐状态注意到的
-# 所以，每一步的上下文向量是循环生成的
-# 生成下一步的隐状态时，输入仍然是上下文向量与目标序列的输入拼接，然后和当前步的隐状态计算得出
 
 
 def sequence_mask(X, valid_len, value=0.0):
@@ -58,28 +49,99 @@ def masked_softmax(X, valid_lens):
     return nn.functional.softmax(X.reshape(shape), dim=-1)
 
 
-class AdditiveAttention(nn.Module):
-    def __init__(self, key_size, query_size, num_hiddens, dropout):
+def transpose_qkv(X, num_heads):
+    """为了多注意力头的并行计算而变换形状"""
+    # 输入X的形状:(batch_size，查询或者“键－值”对的个数，num_hiddens)
+    # 输出X的形状:(batch_size，查询或者“键－值”对的个数，num_heads，
+    # num_hiddens/num_heads)
+    X = X.reshape(X.shape[0], X.shape[1], num_heads, -1)
+    # 输出X的形状:(batch_size，num_heads，查询或者“键－值”对的个数,
+    # num_hiddens/num_heads)
+    X = X.permute(0, 2, 1, 3)
+    # 最终输出的形状:(batch_size*num_heads,查询或者“键－值”对的个数,
+    # num_hiddens/num_heads)
+    return X.reshape(-1, X.shape[2], X.shape[3])
+
+
+def transpose_output(X, num_heads):
+    """逆转transpose_qkv函数的操作"""
+    X = X.reshape(-1, num_heads, X.shape[1], X.shape[2])
+    X = X.permute(0, 2, 1, 3)
+    return X.reshape(X.shape[0], X.shape[1], -1)
+
+
+class DotProductAttention(nn.Module):
+    def __init__(self, dropout):
         super().__init__()
-        self.W_k = nn.Linear(key_size, num_hiddens, bias=False)
-        self.W_q = nn.Linear(query_size, num_hiddens, bias=False)
-        self.w_v = nn.Linear(num_hiddens, 1, bias=False)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, queries, keys, values, valid_lens):
-        queries, keys = self.W_q(queries), self.W_k(keys)
-        features = queries.unsqueeze(2) + keys.unsqueeze(1)
-        features = torch.tanh(features)
-        scores = self.w_v(features).squeeze(-1)
+    # query_size = key_size = d
+    # queries形状(batch_size, num_queries) -> (batch_size, num_queries, d)
+    # keys形状(batch_size, num_keys) -> (batch_size, num_keys, d)
+
+    # values形状(batch_size, num_values) -> (batch_size, num_keys, value_size)
+    def forward(self, queries, keys, values, valid_lens=None):
+        d = queries.shape[-1]
+        # scores(batch_size, num_queries, num_keys)
+        scores = torch.bmm(queries, keys.transpose(1, 2)) / math.sqrt(d)
         self.attention_weights = masked_softmax(scores, valid_lens)
         return torch.bmm(self.dropout(self.attention_weights), values)
 
 
-class Seq2SeqAttentionDecoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0.0):
+class MultiHeadAttention(nn.Module):
+    """多头注意力"""
+
+    def __init__(
+        self,
+        key_size,
+        query_size,
+        value_size,
+        num_hiddens,
+        num_heads,
+        dropout,
+        bias=False,
+    ):
         super().__init__()
-        self.attention = AdditiveAttention(
-            num_hiddens, num_hiddens, num_hiddens, dropout
+        self.num_heads = num_heads
+        self.attention = DotProductAttention(dropout)
+        self.W_q = nn.Linear(query_size, num_hiddens, bias=bias)
+        self.W_k = nn.Linear(key_size, num_hiddens, bias=bias)
+        self.W_v = nn.Linear(value_size, num_hiddens, bias=bias)
+        self.W_o = nn.Linear(num_hiddens, num_hiddens, bias=bias)
+
+    def forward(self, queries, keys, values, valid_lens):
+        # queries，keys，values的形状:
+        # (batch_size，查询或者“键－值”对的个数，num_hiddens)
+        # valid_lens　的形状:
+        # (batch_size，)或(batch_size，查询的个数)
+        # 经过变换后，输出的queries，keys，values　的形状:
+        # (batch_size*num_heads，查询或者“键－值”对的个数，
+        # num_hiddens/num_heads)
+        queries = transpose_qkv(self.W_q(queries), self.num_heads)
+        keys = transpose_qkv(self.W_k(keys), self.num_heads)
+        values = transpose_qkv(self.W_v(values), self.num_heads)
+
+        if valid_lens is not None:
+            # 在轴0，将第一项（标量或者矢量）复制num_heads次，
+            # 然后如此复制第二项，然后诸如此类。
+            valid_lens = torch.repeat_interleave(
+                valid_lens, repeats=self.num_heads, dim=0
+            )
+        # output的形状:(batch_size*num_heads，查询的个数，
+        # num_hiddens/num_heads)
+        output = self.attention(queries, keys, values, valid_lens)
+        # output_concat的形状:(batch_size，查询的个数，num_hiddens)
+        output_concat = transpose_output(output, self.num_heads)
+        return self.W_o(output_concat)
+
+
+class Seq2SeqAttentionDecoder(nn.Module):
+    def __init__(
+        self, vocab_size, embed_size, num_hiddens, num_layers, dropout=0.0, num_heads=4
+    ):
+        super().__init__()
+        self.attention = MultiHeadAttention(
+            num_hiddens, num_hiddens, num_hiddens, num_hiddens, num_heads, dropout
         )
         self.embedding = nn.Embedding(vocab_size, embed_size)
         self.gru = nn.GRU(
@@ -109,7 +171,7 @@ class Seq2SeqAttentionDecoder(nn.Module):
             # 将x变形为(1,batch_size,embed_size+num_hiddens)
             out, hidden_state = self.gru(x.permute(1, 0, 2), hidden_state)
             outputs.append(out)
-            self._attention_weights.append(self.attention.attention_weights)
+            self._attention_weights.append(self.attention.attention.attention_weights)
         # 全连接层变换后，outputs的形状为
         # (num_steps,batch_size,vocab_size)
         outputs = self.dense(torch.cat(outputs, dim=0))

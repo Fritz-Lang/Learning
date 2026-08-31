@@ -1,9 +1,13 @@
 import os
 
 import torch
-from Bahdanua_Attention import EncoderDecoder, Seq2SeqAttentionDecoder, Seq2SeqEncoder
 from Config import Config
 from data_loader import get_data_loader
+from Multihead_Attention import (
+    EncoderDecoder,
+    Seq2SeqAttentionDecoder,
+    Seq2SeqEncoder,
+)
 from torch import nn, optim
 from tqdm import tqdm
 
@@ -29,6 +33,7 @@ def train():
         num_hiddens=Config.NUM_HIDDEN,
         num_layers=Config.NUM_LAYERS,
         dropout=Config.DROPOUT,
+        num_heads=Config.NUM_HEADS,
     )
     model = EncoderDecoder(encoder, decoder).to(device)
 
@@ -55,7 +60,7 @@ def train():
             outputs, _ = model(src, tgt_input, valid_lens)
             loss = criterion(outputs.permute(0, 2, 1), tgt_target)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
             # 统计损失，随时展示损失
